@@ -1,6 +1,17 @@
 function mappa_globale
 f = figure('Position', [100, 100, 1400, 800]);
 
+% Dropdown selezione mezzo (obbligatorio)
+mezzo_label = uicontrol('Parent', f, 'Style', 'text', 'String', 'Mezzo:', ...
+	'Units', 'normalized', 'Position', [0.68 0.88 0.12 0.03], 'FontSize', 12, ...
+	'FontWeight', 'bold', 'BackgroundColor', [0.94 0.94 0.94], 'HorizontalAlignment', 'left');
+
+mezzo_popup = uicontrol('Parent', f, 'Style', 'popupmenu', ...
+	'String', {'Seleziona mezzo', 'Nave', 'Elicottero'}, ...
+	'Units', 'normalized', 'Position', [0.68 0.85 0.25 0.025], 'FontSize', 11, ...
+	'BackgroundColor', [1 1 1], ...
+	'Callback', @(src,~) update_preset_list());
+
 % Solo pannelli input all'avvio
 panel_top = uipanel('Parent', f, 'Title', 'INTERCETTORE', 'FontSize', 11, ...
 	'BackgroundColor', [0.95 0.95 0.95], 'Position', [0.05 0.85 0.6 0.13]);
@@ -26,16 +37,28 @@ btn_calcola = uicontrol('Parent', f, 'Style', 'pushbutton', 'String', 'Calcola i
 	'Units', 'normalized', 'Position', [0.05 0.63 0.2 0.05], 'FontSize', 12, ...
 	'Callback', @(src,~) calcola_intercettazione(src));
 
-% Casi pre-impostati
-presets = { ...
+% Casi pre-impostati per NAVI
+presets_nave = { ...
 	struct('name', 'rotta intercettazione nave in avaria', 'lat_intc', '36.70 N', 'lon_intc', '14.82 E', 'vel_intc', '25', ...
 		'lat_intd', '36.42 N', 'lon_intd', '14.71 E', 'vel_intd', '4', 'prua_intd', '135'); ...
 	struct('name', 'intercettazione nave per pilotaggio Stretto di Messina', 'lat_intc', '38.18 N', 'lon_intc', '15.55 E', 'vel_intc', '20', ...
 		'lat_intd', '37.86 N', 'lon_intd', '15.55 E', 'vel_intd', '12', 'prua_intd', '10'); ...
 	struct('name', 'intercettazione oceano indiano', 'lat_intc', '31.99 S', 'lon_intc', '115.57 E', 'vel_intc', '22', ...
-		'lat_intd', '28.08 S', 'lon_intd', '109.49 E', 'vel_intd', '17', 'prua_intd', '10'); ...
+		'lat_intd', '42.45 S', 'lon_intd', '78.34 E', 'vel_intd', '12', 'prua_intd', '30'); ...
 	struct('name', 'soccorso nel golfo del messico', 'lat_intc', '29.48 N', 'lon_intc', '94.26 W', 'vel_intc', '20', ...
 		'lat_intd', '24.82 N', 'lon_intd', '91.85 W', 'vel_intd', '8', 'prua_intd', '260') ...
+};
+
+% Casi pre-impostati per ELICOTTERI
+presets_elicottero = { ...
+	struct('name', 'soccorso rapido Mediterraneo', 'lat_intc', '38 N', 'lon_intc', '12.56 E', 'vel_intc', '120', ...
+		'lat_intd', '38.27 N', 'lon_intd', '11.79 E', 'vel_intd', '15', 'prua_intd', '340'); ...
+	struct('name', 'evacuazione medica urgente', 'lat_intc', '37.49 N', 'lon_intc', '15.07 E', 'vel_intc', '150', ...
+		'lat_intd', '37.71 N', 'lon_intd', '13.45 E', 'vel_intd', '0', 'prua_intd', '0'); ...
+	struct('name', 'ricerca SAR Tirreno', 'lat_intc', '41.86 N', 'lon_intc', '12.43 E', 'vel_intc', '130', ...
+		'lat_intd', '42.55 N', 'lon_intd', '10.44 E', 'vel_intd', '3.5', 'prua_intd', '180'); ...
+	struct('name', 'intercettazione veloce Adriatico', 'lat_intc', '41.14 N', 'lon_intc', '16.88 E', 'vel_intc', '180', ...
+		'lat_intd', '39.96 N', 'lon_intd', '19.03 E', 'vel_intd', '30', 'prua_intd', '60') ...
 };
 
 preset_label = uicontrol('Parent', f, 'Style', 'text', 'String', 'Preset:', ...
@@ -47,11 +70,7 @@ preset_checkbox = uicontrol('Parent', f, 'Style', 'checkbox', 'String', 'Usa pre
 	'BackgroundColor', [0.95 0.95 0.95], 'Value', 0, ...
 	'Callback', @(src,~) toggle_preset_controls());
 
-preset_names = {'Seleziona preset'};
-for i = 1:length(presets)
-	preset_names{end+1} = presets{i}.name;
-end
-preset_popup = uicontrol('Parent', f, 'Style', 'popupmenu', 'String', preset_names, ...
+preset_popup = uicontrol('Parent', f, 'Style', 'popupmenu', 'String', {'Seleziona preset'}, ...
 	'Units', 'normalized', 'Position', [0.35 0.635 0.18 0.045], 'FontSize', 11, ...
 	'BackgroundColor', [1 1 1], 'Enable', 'off');
 
@@ -63,12 +82,14 @@ preset_button = uicontrol('Parent', f, 'Style', 'pushbutton', 'String', 'Carica 
 sar_lat = [25.7781, 44.6488, 64.1265, 38.7223, -33.9249, -31.9505, 35.6762, 21.3069, -36.8485, -34.6037, ...
 	51.4700, 40.7128, 34.0522, 1.3521, 55.7558, 35.6895, 48.8566, 19.4326, -23.5505, 59.3293, 60.1699, 37.9838, 41.9028, 39.9042, ...
 	14.6710, 24.9474, 22.3193, 12.6667, 5.3521, -37.8136, -20.2606, -8.7832, 11.5564, 36.7537, 31.2454, 13.1939, 7.1095, 4.0511, -4.0383, -33.8688, ...
-	21.3099, 13.1857, 22.5597, 40.7306, 22.2793, 29.9759, 5.1104, 18.5243, 25.2048, 1.3521];
+	21.3099, 13.1857, 22.5597, 40.7306, 22.2793, 29.9759, 5.1104, 18.5243, 25.2048, 1.3521, ...
+	37.4667, 37.9114, 39.3542, 40.5169, 41.6544, 38.9053, 40.6328, 45.5056];
 
 sar_lon = [-80.1794, -63.5752, -21.8174, -9.1393, 18.4241, 115.8605, 139.6503, -157.8583, 174.7633, -58.3816, ...
 	-0.4543, -74.0060, -118.2437, 103.8198, 37.6173, 139.6917, 2.3522, -99.1332, -46.6333, 18.0686, 24.9384, 23.7275, 12.4964, 116.4074, ...
 	-17.0832, 55.2708, 114.1696, 44.3615, -1.9536, 144.9631, 57.5522, -13.1939, 43.1621, 3.5898, 32.8872, 104.8673, -60.7269, -74.0121, 37.2808, 151.2093, ...
-	-157.8583, -89.2381, 88.3639, 141.6671, 120.6737, 47.9244, -77.1119, -69.9485, 55.4164, 103.8198];
+	-157.8583, -89.2381, 88.3639, 141.6671, 120.6737, 47.9244, -77.1119, -69.9485, 55.4164, 103.8198, ...
+	15.0647, 12.4880, 8.9725, 17.4031, 12.4456, 16.2422, 17.9467, 12.3517];
 
 sar_names = { ...
 	'Miami', 'Halifax', 'Reykjavik', 'Lisbon', 'Cape Town', 'Perth', 'Tokyo', 'Honolulu', 'Auckland', 'Buenos Aires', ...
@@ -76,7 +97,8 @@ sar_names = { ...
 	'Helsinki', 'Athens', 'Rome', 'Beijing', ...
 	'Dakar', 'Dubai', 'Jakarta', 'Baghdad', 'Monrovia', 'Melbourne', 'Mauritius', 'Dar es Salaam', 'Port Sudan', 'Gibraltar', ...
 	'Panama', 'Cartagena', 'Port Said', 'Istanbul', 'Aden', 'Mombasa', 'Mogadisio', 'Callao', 'Sydney', ...
-	'Honolulu (2)', 'Puerto Cortes', 'Bangkok', 'Manila', 'Hong Kong', 'Colombo', 'Veracruz', 'Santos', 'Male', 'Kuala Lumpur'};
+	'Honolulu (2)', 'Puerto Cortes', 'Bangkok', 'Manila', 'Hong Kong', 'Colombo', 'Veracruz', 'Santos', 'Male', 'Kuala Lumpur', ...
+	'Catania', 'Trapani', 'Decimomannu', 'Grottaglie', 'Pratica di Mare', 'Lamezia Terme', 'Brindisi', 'Venezia'};
 
 % Carica coastlines una volta (se disponibile)
 try
@@ -91,6 +113,8 @@ end
 % Salva handles con guidata
 handles = struct();
 handles.f = f;
+handles.mezzo_label = mezzo_label;
+handles.mezzo_popup = mezzo_popup;
 handles.panel_top = panel_top;
 handles.panel_bottom = panel_bottom;
 handles.btn_calcola = btn_calcola;
@@ -104,7 +128,8 @@ handles.prua_intd_edit = prua_intd_edit;
 handles.sar_lat = sar_lat;
 handles.sar_lon = sar_lon;
 handles.sar_names = sar_names;
-handles.presets = presets;
+handles.presets_nave = presets_nave;
+handles.presets_elicottero = presets_elicottero;
 handles.preset_popup = preset_popup;
 handles.preset_button = preset_button;
 handles.preset_checkbox = preset_checkbox;
@@ -124,6 +149,14 @@ toggle_preset_controls();
 			if ~isstruct(h)
 				h = guidata(src);
 			end
+			
+			% Verifica che sia stato selezionato un mezzo
+			mezzo_idx = get(h.mezzo_popup, 'Value');
+			if mezzo_idx == 1
+				errordlg('Seleziona il mezzo da utilizzare (Nave o Elicottero).', 'Mezzo non selezionato');
+				return;
+			end
+			
 			% Leggi dati (rimuove °, N, S, E, W e converte virgola in punto)
 			lat_intc = parse_coordinate(get(h.lat_intc_edit, 'String'));
 			lon_intc = parse_coordinate(get(h.lon_intc_edit, 'String'));
@@ -208,6 +241,12 @@ toggle_preset_controls();
 			delete(h.panel_top);
 			delete(h.panel_bottom);
 			delete(h.btn_calcola);
+			if isfield(h, 'mezzo_label') && isgraphics(h.mezzo_label)
+				delete(h.mezzo_label);
+			end
+			if isfield(h, 'mezzo_popup') && isgraphics(h.mezzo_popup)
+				delete(h.mezzo_popup);
+			end
 			if isfield(h, 'preset_label') && isgraphics(h.preset_label)
 				delete(h.preset_label);
 			end
@@ -451,6 +490,33 @@ toggle_preset_controls();
 		end
 	end
 
+	% Aggiorna lista preset in base al mezzo selezionato
+	function update_preset_list()
+		h = guidata(f);
+		mezzo_idx = get(h.mezzo_popup, 'Value');
+		
+		if mezzo_idx == 2  % Nave
+			presets = h.presets_nave;
+		elseif mezzo_idx == 3  % Elicottero
+			presets = h.presets_elicottero;
+		else
+			set(h.preset_popup, 'String', {'Seleziona preset'});
+			set(h.preset_popup, 'Value', 1);
+			return;
+		end
+		
+		preset_names = {'Seleziona preset'};
+		for i = 1:length(presets)
+			preset_names{end+1} = presets{i}.name;
+		end
+		set(h.preset_popup, 'String', preset_names);
+		set(h.preset_popup, 'Value', 1);
+		
+		% Salva i preset correnti in handles
+		h.presets_current = presets;
+		guidata(f, h);
+	end
+
 	% Abilita/Disabilita controlli preset
 	function toggle_preset_controls()
 		h = guidata(f);
@@ -469,7 +535,13 @@ toggle_preset_controls();
 		if idx <= 1
 			return;
 		end
-		p = h.presets{idx - 1};
+		
+		% Usa i preset correnti salvati in handles
+		if isfield(h, 'presets_current')
+			p = h.presets_current{idx - 1};
+		else
+			return;
+		end
 		set(h.lat_intc_edit, 'String', p.lat_intc);
 		set(h.lon_intc_edit, 'String', p.lon_intc);
 		set(h.vel_intc_edit, 'String', p.vel_intc);
@@ -484,6 +556,17 @@ toggle_preset_controls();
 		% Cancella mappa e pannello dati
 		delete(ax_map);
 		delete(panel_dati_old);
+		
+		% Ricrea dropdown selezione mezzo
+		mezzo_label = uicontrol('Parent', figura, 'Style', 'text', 'String', 'Mezzo:', ...
+			'Units', 'normalized', 'Position', [0.68 0.88 0.12 0.03], 'FontSize', 12, ...
+			'FontWeight', 'bold', 'BackgroundColor', [0.94 0.94 0.94], 'HorizontalAlignment', 'left');
+
+		mezzo_popup = uicontrol('Parent', figura, 'Style', 'popupmenu', ...
+			'String', {'Seleziona mezzo', 'Nave', 'Elicottero'}, ...
+			'Units', 'normalized', 'Position', [0.68 0.85 0.25 0.025], 'FontSize', 11, ...
+			'BackgroundColor', [1 1 1], ...
+			'Callback', @(src,~) update_preset_list());
 		
 		% Ricrea i pannelli di input con i valori attuali
 		panel_top = uipanel('Parent', figura, 'Title', 'INTERCETTORE', 'FontSize', 11, ...
@@ -519,11 +602,7 @@ toggle_preset_controls();
 			'BackgroundColor', [0.95 0.95 0.95], 'Value', 0, ...
 			'Callback', @(src,~) toggle_preset_controls());
 
-		preset_names = {'Seleziona preset'};
-		for i = 1:length(presets)
-			preset_names{end+1} = presets{i}.name;
-		end
-		preset_popup = uicontrol('Parent', figura, 'Style', 'popupmenu', 'String', preset_names, ...
+		preset_popup = uicontrol('Parent', figura, 'Style', 'popupmenu', 'String', {'Seleziona preset'}, ...
 			'Units', 'normalized', 'Position', [0.35 0.635 0.18 0.045], 'FontSize', 11, ...
 			'BackgroundColor', [1 1 1], 'Enable', 'off');
 
@@ -533,6 +612,8 @@ toggle_preset_controls();
 		
 		% Aggiorna guidata
 		h = guidata(figura);
+		h.mezzo_label = mezzo_label;
+		h.mezzo_popup = mezzo_popup;
 		h.panel_top = panel_top;
 		h.panel_bottom = panel_bottom;
 		h.btn_calcola = btn_calcola;
@@ -543,7 +624,8 @@ toggle_preset_controls();
 		h.lon_intd_edit = lon_intd_edit;
 		h.vel_intd_edit = vel_intd_edit;
 		h.prua_intd_edit = prua_intd_edit;
-		h.presets = presets;
+		h.presets_nave = presets_nave;
+		h.presets_elicottero = presets_elicottero;
 		h.preset_popup = preset_popup;
 		h.preset_button = preset_button;
 		h.preset_checkbox = preset_checkbox;
