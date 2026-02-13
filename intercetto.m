@@ -41,7 +41,7 @@ btn_calcola = uicontrol('Parent', f, 'Style', 'pushbutton', 'String', 'Calcola i
 presets_nave = { ...
 	struct('name', 'rotta intercettazione nave in avaria', 'lat_intc', '36.70 N', 'lon_intc', '14.82 E', 'vel_intc', '25', ...
 		'lat_intd', '36.42 N', 'lon_intd', '14.71 E', 'vel_intd', '4', 'prua_intd', '135'); ...
-	struct('name', 'intercettazione nave per pilotaggio Stretto di Messina', 'lat_intc', '38.18 N', 'lon_intc', '15.55 E', 'vel_intc', '20', ...
+	struct('name', 'intercettazione nave per pilotaggio Stretto di Messina', 'lat_intc', '38.17 N', 'lon_intc', '15.65 E', 'vel_intc', '20', ...
 		'lat_intd', '37.86 N', 'lon_intd', '15.55 E', 'vel_intd', '12', 'prua_intd', '10'); ...
 	struct('name', 'intercettazione oceano indiano', 'lat_intc', '31.99 S', 'lon_intc', '115.57 E', 'vel_intc', '22', ...
 		'lat_intd', '42.45 S', 'lon_intd', '78.34 E', 'vel_intd', '12', 'prua_intd', '30'); ...
@@ -54,7 +54,7 @@ presets_elicottero = { ...
 	struct('name', 'soccorso rapido Mediterraneo', 'lat_intc', '38 N', 'lon_intc', '12.56 E', 'vel_intc', '120', ...
 		'lat_intd', '38.27 N', 'lon_intd', '11.79 E', 'vel_intd', '15', 'prua_intd', '340'); ...
 	struct('name', 'evacuazione medica urgente', 'lat_intc', '37.49 N', 'lon_intc', '15.07 E', 'vel_intc', '150', ...
-		'lat_intd', '37.71 N', 'lon_intd', '13.45 E', 'vel_intd', '0', 'prua_intd', '0'); ...
+		'lat_intd', '38.50 N', 'lon_intd', '14.29 E', 'vel_intd', '0', 'prua_intd', '0'); ...
 	struct('name', 'ricerca SAR Tirreno', 'lat_intc', '41.86 N', 'lon_intc', '12.43 E', 'vel_intc', '130', ...
 		'lat_intd', '42.55 N', 'lon_intd', '10.44 E', 'vel_intd', '3.5', 'prua_intd', '180'); ...
 	struct('name', 'intercettazione veloce Adriatico', 'lat_intc', '41.14 N', 'lon_intc', '16.88 E', 'vel_intc', '180', ...
@@ -151,11 +151,19 @@ toggle_preset_controls();
 			end
 			
 			% Verifica che sia stato selezionato un mezzo
+			if ~isfield(h, 'mezzo_popup') || ~isvalid(h.mezzo_popup)
+				errordlg('Errore: controllo mezzo non trovato.', 'Errore');
+				return;
+			end
 			mezzo_idx = get(h.mezzo_popup, 'Value');
 			if mezzo_idx == 1
 				errordlg('Seleziona il mezzo da utilizzare (Nave o Elicottero).', 'Mezzo non selezionato');
 				return;
 			end
+			
+			% Salva il nome del mezzo PRIMA di eliminare i controlli
+			mezzo_names = get(h.mezzo_popup, 'String');
+			mezzo_selezionato = mezzo_names{mezzo_idx};
 			
 			% Leggi dati (rimuove °, N, S, E, W e converte virgola in punto)
 			lat_intc = parse_coordinate(get(h.lat_intc_edit, 'String'));
@@ -238,25 +246,25 @@ toggle_preset_controls();
 			end
 
 			% Chiudi pannelli input
-			delete(h.panel_top);
-			delete(h.panel_bottom);
-			delete(h.btn_calcola);
-			if isfield(h, 'mezzo_label') && isgraphics(h.mezzo_label)
+			if isvalid(h.panel_top), delete(h.panel_top); end
+			if isvalid(h.panel_bottom), delete(h.panel_bottom); end
+			if isvalid(h.btn_calcola), delete(h.btn_calcola); end
+			if isfield(h, 'mezzo_label') && isvalid(h.mezzo_label)
 				delete(h.mezzo_label);
 			end
-			if isfield(h, 'mezzo_popup') && isgraphics(h.mezzo_popup)
+			if isfield(h, 'mezzo_popup') && isvalid(h.mezzo_popup)
 				delete(h.mezzo_popup);
 			end
-			if isfield(h, 'preset_label') && isgraphics(h.preset_label)
+			if isfield(h, 'preset_label') && isvalid(h.preset_label)
 				delete(h.preset_label);
 			end
-			if isfield(h, 'preset_checkbox') && isgraphics(h.preset_checkbox)
+			if isfield(h, 'preset_checkbox') && isvalid(h.preset_checkbox)
 				delete(h.preset_checkbox);
 			end
-			if isfield(h, 'preset_popup') && isgraphics(h.preset_popup)
+			if isfield(h, 'preset_popup') && isvalid(h.preset_popup)
 				delete(h.preset_popup);
 			end
-			if isfield(h, 'preset_button') && isgraphics(h.preset_button)
+			if isfield(h, 'preset_button') && isvalid(h.preset_button)
 				delete(h.preset_button);
 			end
 
@@ -306,6 +314,12 @@ toggle_preset_controls();
 		panel_dati = uipanel('Parent', h.f, 'Title', 'DATI INTERCETTORE / INTERCETTATO', 'FontSize', 12, ...
 			'BackgroundColor', [0.95 0.95 0.95], 'Position', [0.68 0.05 0.3 0.93]);
 
+		% Mostra il mezzo selezionato
+		uicontrol('Parent', panel_dati, 'Style', 'text', 'String', sprintf('Mezzo: %s', mezzo_selezionato), ...
+			'Units', 'normalized', 'Position', [0.0 0.95 1.0 0.03], 'FontSize', 11, ...
+			'FontWeight', 'bold', 'HorizontalAlignment', 'center', 'BackgroundColor', [0.95 0.95 0.95], ...
+			'ForegroundColor', [0.1 0.3 0.6]);
+
 		uicontrol('Parent', panel_dati, 'Style', 'text', 'String', ...
 			sprintf('Intercettore:\nLat: %.4f\nLon: %.4f\nVelocità: %.2f kts\n\nRotta: %.1f°\nE.T.A.: %s\n\nPunto Int.:\nLat: %.4f\nLon: %.4f', ...
 			lat_intc, lon_intc, vel_intc, rotta, eta_str, lat_int, lon_int), ...
@@ -313,7 +327,7 @@ toggle_preset_controls();
 			'FontWeight', 'bold', 'HorizontalAlignment', 'left', 'BackgroundColor', [0.95 0.95 0.95]);
 		
 		% Linea separatoria nera verticale (visibile all'interno del pannello)
-		annotation(h.f, 'line', [0.83 0.83], [0.05 0.93], 'Color', 'k', 'LineWidth', 2);
+		linea_separatrice = annotation(h.f, 'line', [0.83 0.83], [0.05 0.93], 'Color', 'k', 'LineWidth', 2);
 		
 		uicontrol('Parent', panel_dati, 'Style', 'text', 'String', ...
 			sprintf('Intercettato:\nLat: %.4f\nLon: %.4f\nVelocità: %.2f kts\nPrua: %.1f°', ...
@@ -325,7 +339,7 @@ toggle_preset_controls();
 		uicontrol('Parent', panel_dati, 'Style', 'pushbutton', 'String', 'Modifica Dati', ...
 			'Units', 'normalized', 'Position', [0.5 0.52 0.45 0.06], 'FontSize', 12, 'FontWeight', 'bold', ...
 			'BackgroundColor', [0.3 0.6 0.9], 'ForegroundColor', [1 1 1], ...
-			'Callback', @(src,~) modifica_dati_callback(h.f, ax, panel_dati, lat_intc, lon_intc, vel_intc, lat_intd, lon_intd, vel_intd, prua_intd));
+			'Callback', @(src,~) modifica_dati_callback(h.f, ax, panel_dati, linea_separatrice, lat_intc, lon_intc, vel_intc, lat_intd, lon_intd, vel_intd, prua_intd));
 		
 		% Legenda
 		uicontrol('Parent', panel_dati, 'Style', 'text', 'String', 'LEGENDA:', ...
@@ -399,10 +413,10 @@ toggle_preset_controls();
 			lon_center = mean(all_lons);
 			lat_range = max(all_lats) - min(all_lats);
 			lon_range = max(all_lons) - min(all_lons);
-			% Aggiungi un margine del 50%
-			margin = 1.5;
-			lat_span = max(lat_range * margin, 2); % Minimo 2 gradi
-			lon_span = max(lon_range * margin, 2); % Minimo 2 gradi
+			% Aggiungi un margine ampio per vedere bene tutta l'area
+			margin = 2.2;
+			lat_span = max(lat_range * margin, 3); % Minimo 3 gradi per una vista migliore
+			lon_span = max(lon_range * margin, 3); % Minimo 3 gradi per una vista migliore
 			
 			% Limiti finali
 			final_xlim = [lon_center - lon_span, lon_center + lon_span];
@@ -412,15 +426,15 @@ toggle_preset_controls();
 			initial_xlim = [-180, 180];
 			initial_ylim = [-90, 90];
 			
-			% Animazione zoom graduale con easing più fluido
-			num_steps = 80; % Aumentato per maggiore fluidità
+			% Animazione zoom fluida e naturale con easing professionale
+			num_steps = 75;
 			for i = 1:num_steps
 				t = i / num_steps; % Parametro di interpolazione (0 a 1)
-				% Easing in-out cubic per movimento più naturale
+				% Easing in-out quartic per movimento super fluido
 				if t < 0.5
-					t_smooth = 4 * t^3;
+					t_smooth = 8 * t^4;
 				else
-					t_smooth = 1 - (-2 * t + 2)^3 / 2;
+					t_smooth = 1 - ((-2 * t + 2)^4) / 2;
 				end
 				
 				% Interpola i limiti
@@ -431,7 +445,7 @@ toggle_preset_controls();
 				xlim(ax, current_xlim);
 				ylim(ax, current_ylim);
 				drawnow;
-				pause(0.015); % Pausa ridotta per animazione più fluida
+				pause(0.012); % Timing perfetto per fluidità ottimale
 			end
 			
 			% Assicura limiti finali esatti
@@ -552,10 +566,21 @@ toggle_preset_controls();
 	end
 	
 	% Funzione per modificare i dati
-	function modifica_dati_callback(figura, ax_map, panel_dati_old, lat_intc, lon_intc, vel_intc, lat_intd, lon_intd, vel_intd, prua_intd)
-		% Cancella mappa e pannello dati
-		delete(ax_map);
-		delete(panel_dati_old);
+	function modifica_dati_callback(figura, ax_map, panel_dati_old, linea_sep, lat_intc, lon_intc, vel_intc, lat_intd, lon_intd, vel_intd, prua_intd)
+		% Recupera i preset dalla struttura handles esistente prima di eliminare i controlli
+		h_old = guidata(figura);
+		presets_nave_saved = h_old.presets_nave;
+		presets_elicottero_saved = h_old.presets_elicottero;
+		sar_lat_saved = h_old.sar_lat;
+		sar_lon_saved = h_old.sar_lon;
+		sar_names_saved = h_old.sar_names;
+		
+		% Cancella mappa, pannello dati e linea separatrice
+		if isvalid(ax_map), delete(ax_map); end
+		if isvalid(panel_dati_old), delete(panel_dati_old); end
+		if isvalid(linea_sep)
+			delete(linea_sep);
+		end
 		
 		% Ricrea dropdown selezione mezzo
 		mezzo_label = uicontrol('Parent', figura, 'Style', 'text', 'String', 'Mezzo:', ...
@@ -624,8 +649,11 @@ toggle_preset_controls();
 		h.lon_intd_edit = lon_intd_edit;
 		h.vel_intd_edit = vel_intd_edit;
 		h.prua_intd_edit = prua_intd_edit;
-		h.presets_nave = presets_nave;
-		h.presets_elicottero = presets_elicottero;
+		h.presets_nave = presets_nave_saved;
+		h.presets_elicottero = presets_elicottero_saved;
+		h.sar_lat = sar_lat_saved;
+		h.sar_lon = sar_lon_saved;
+		h.sar_names = sar_names_saved;
 		h.preset_popup = preset_popup;
 		h.preset_button = preset_button;
 		h.preset_checkbox = preset_checkbox;
